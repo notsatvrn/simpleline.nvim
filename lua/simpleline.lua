@@ -1,6 +1,6 @@
 local simpleline = {}
+local elements = {}
 local helpers = {}
-local getters = {}
 
 -- SIMPLELINE
 
@@ -57,21 +57,25 @@ simpleline.get = function(active)
   local content_config = simpleline.config[active]
   local content = {}
   for i, cv in ipairs(content_config.left) do
-    if type(cv) == 'string' then
-      content[i] = getters[cv](i)
-    else
+    if type(cv) == 'table' then
       for _, v in ipairs(cv) do
-        content[i] = getters[v](i)
+        if type(v) == 'string' then
+          content[i] = elements[v](i)
+        else
+          content[i] = elements[v[0]](i, v[1])
+        end
       end
     end
   end
   content[#content+1] = '%='
   for i, cv in ipairs(content_config.right) do
-    if type(cv) == 'string' then
-      content[#content+1] = getters[cv](#content_config.right-(i-1))
-    else
+    if type(cv) == 'table' then
       for _, v in ipairs(cv) do
-        content[#content+1] = getters[v](#content_config.right-(i-1))
+        if type(v) == 'string' then
+          content[#content+1] = elements[v](#content_config.right-(i-1))
+        else
+          content[#content+1] = elements[v[1]](#content_config.right-(i-1), v[2])
+        end
       end
     end
   end
@@ -81,7 +85,7 @@ end
 
 -- GETTERS
 
-getters.file = function(pos)
+elements.file = function(pos)
   if vim.bo.buftype == 'terminal' then
     return '%t '
   end
@@ -89,17 +93,17 @@ getters.file = function(pos)
   return helpers.format('%F%m%r', '%f%m%r', pos)
 end
 
-getters.mode = function(pos)
+elements.mode = function(pos)
   local mode_info = helpers.modes[vim.fn.mode()]
 
   return helpers.format(mode_info.long, mode_info.short, pos)
 end
 
-getters.location = function(pos)
+elements.location = function(pos)
   return helpers.highlight('%l|%2v', pos)
 end
 
-getters.git = function(pos)
+elements.git = function(pos)
   if vim.bo.buftype ~= '' then
     return ''
   end
@@ -120,7 +124,7 @@ getters.git = function(pos)
   return helpers.highlight(string.format('%s %s %s', icon, head, signs), pos)
 end
 
-getters.diagnostics = function(pos)
+elements.diagnostics = function(pos)
   if vim.api.nvim_win_get_width(0) < 100 or vim.bo.buftype ~= '' or next(vim.lsp.buf_get_clients()) == nil then
     return ''
   end
@@ -140,7 +144,7 @@ getters.diagnostics = function(pos)
   return helpers.highlight(string.format('%s%s', icon, table.concat(t, '')), pos)
 end
 
-getters.type = function(pos)
+elements.type = function(pos)
   local filetype = vim.bo.filetype
 
   if filetype == '' or vim.bo.buftype ~= '' then
@@ -148,6 +152,10 @@ getters.type = function(pos)
   end
 
   return helpers.highlight(string.format('%s %s', helpers.get_file_icon(), filetype), pos)
+end
+
+elements.text = function(pos, args)
+  return helpers.highlight(args[1], pos)
 end
 
 -- HELPERS
@@ -210,33 +218,33 @@ local CTRL_S = vim.api.nvim_replace_termcodes('<C-S>', true, true, true)
 local CTRL_V = vim.api.nvim_replace_termcodes('<C-V>', true, true, true)
 
 helpers.modes = setmetatable({
-  ['n']    = { long = 'Normal',   short = 'N',   hl = 'SimplelineModeNormal' },
-  ['v']    = { long = 'Visual',   short = 'V',   hl = 'SimplelineModeVisual' },
-  ['V']    = { long = 'V-Line',   short = 'V-L', hl = 'SimplelineModeVisual' },
-  [CTRL_V] = { long = 'V-Block',  short = 'V-B', hl = 'SimplelineModeVisual' },
-  ['s']    = { long = 'Select',   short = 'S',   hl = 'SimplelineModeVisual' },
-  ['S']    = { long = 'S-Line',   short = 'S-L', hl = 'SimplelineModeVisual' },
-  [CTRL_S] = { long = 'S-Block',  short = 'S-B', hl = 'SimplelineModeVisual' },
-  ['i']    = { long = 'Insert',   short = 'I',   hl = 'SimplelineModeInsert' },
-  ['R']    = { long = 'Replace',  short = 'R',   hl = 'SimplelineModeReplace' },
-  ['c']    = { long = 'Command',  short = 'C',   hl = 'SimplelineModeCommand' },
-  ['r']    = { long = 'Prompt',   short = 'P',   hl = 'SimplelineModeOther' },
-  ['!']    = { long = 'Shell',    short = 'Sh',  hl = 'SimplelineModeOther' },
-  ['t']    = { long = 'Terminal', short = 'T',   hl = 'SimplelineModeOther' },
+  ['n']    = { long = 'NORMAL',   short = 'N',   hl = 'SimplelineModeNormal' },
+  ['v']    = { long = 'VISUAL',   short = 'V',   hl = 'SimplelineModeVisual' },
+  ['V']    = { long = 'V-LINE',   short = 'V-L', hl = 'SimplelineModeVisual' },
+  [CTRL_V] = { long = 'V-BLOCK',  short = 'V-B', hl = 'SimplelineModeVisual' },
+  ['s']    = { long = 'SELECT',   short = 'S',   hl = 'SimplelineModeVisual' },
+  ['S']    = { long = 'S-LINE',   short = 'S-L', hl = 'SimplelineModeVisual' },
+  [CTRL_S] = { long = 'S-BLOCK',  short = 'S-B', hl = 'SimplelineModeVisual' },
+  ['i']    = { long = 'INSERT',   short = 'I',   hl = 'SimplelineModeInsert' },
+  ['R']    = { long = 'REPLACE',  short = 'R',   hl = 'SimplelineModeReplace' },
+  ['c']    = { long = 'COMMAND',  short = 'C',   hl = 'SimplelineModeCommand' },
+  ['r']    = { long = 'PROMPT',   short = 'P',   hl = 'SimplelineModeOther' },
+  ['!']    = { long = 'SHELL',    short = 'SH',  hl = 'SimplelineModeOther' },
+  ['t']    = { long = 'TERMINAL', short = 'T',   hl = 'SimplelineModeOther' },
 }, {
   __index = function()
-    return   { long = 'Unknown',  short = 'U',   hl = 'SimplelineModeOther' }
+    return   { long = 'UNKNOWN',  short = 'U',   hl = 'SimplelineModeOther' }
   end,
 })
 
 helpers.default_config = {
   active = {
-    left = {'mode', 'git', 'file'},
-    right = {'diagnostics', 'type', 'location'},
+    left = {{'mode'}, {'git'}, {'file'}},
+    right = {{'diagnostics'}, {'type'}, {'location'}},
   },
   inactive = {
-    left = {'mode', 'git', 'file'},
-    right = {'diagnostics', 'type', 'location'},
+    left = {{'mode'}, {'git'}, {'file'}},
+    right = {{'diagnostics'}, {'type'}, {'location'}},
   },
   use_icons = true,
   always_show = true,
